@@ -1,0 +1,1877 @@
+9/11/24, 7:26 PM
+
+Copy of LayoffPrediction.ipynb - Colab
+
+import datetime
+from statistics import stdev
+from tqdm import tqdm
+import warnings
+warnings.filterwarnings('ignore')
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import plotly.express as px
+import plotly.figure_factory as ff
+import plotly.graph_objects as go
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_selection import SelectKBest, chi2
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (accuracy_score, auc, classification_report,
+confusion_matrix, precision_recall_curve,
+roc_auc_score, roc_curve)
+from sklearn.model_selection import (GridSearchCV, RepeatedStratifiedKFold,
+cross_val_score, train_test_split)
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from lightgbm import LGBMClassifier
+from xgboost import XGBClassifier
+df = pd.read_csv("/content/drive/MyDrive/WA_Fn-UseC_-HR-Employee-Attrition.csv")
+df
+Age
+
+Attrition
+
+BusinessTravel
+
+DailyRate
+
+Department
+
+DistanceFromHome Education
+
+EducationField
+
+EmployeeCount
+
+0
+
+41
+
+Yes
+
+Travel_Rarely
+
+1102
+
+Sales
+
+1
+
+2
+
+Life Sciences
+
+1
+
+1
+
+49
+
+No
+
+Travel_Frequently
+
+279
+
+Research &
+Development
+
+8
+
+1
+
+Life Sciences
+
+1
+
+2
+
+37
+
+Yes
+
+Travel_Rarely
+
+1373
+
+Research &
+Development
+
+2
+
+2
+
+Other
+
+1
+
+3
+
+33
+
+No
+
+Travel_Frequently
+
+1392
+
+Research &
+Development
+
+3
+
+4
+
+Life Sciences
+
+1
+
+4
+
+27
+
+No
+
+Travel_Rarely
+
+591
+
+Research &
+Development
+
+2
+
+1
+
+Medical
+
+1
+
+...
+
+...
+
+...
+
+...
+
+...
+
+...
+
+...
+
+...
+
+...
+
+...
+
+1465
+
+36
+
+No
+
+Travel_Frequently
+
+884
+
+Research &
+Development
+
+23
+
+2
+
+Medical
+
+1
+
+1466
+
+39
+
+No
+
+Travel_Rarely
+
+613
+
+Research &
+Development
+
+6
+
+1
+
+Medical
+
+1
+
+1467
+
+27
+
+No
+
+Travel_Rarely
+
+155
+
+Research &
+Development
+
+4
+
+3
+
+Life Sciences
+
+1
+
+1468
+
+49
+
+No
+
+Travel_Frequently
+
+1023
+
+Sales
+
+2
+
+3
+
+Medical
+
+1
+
+1469
+
+34
+
+No
+
+Travel_Rarely
+
+628
+
+Research &
+Development
+
+8
+
+3
+
+Medical
+
+1
+
+EmployeeNu
+
+1470 rows × 35 columns
+
+df.shape
+(1470, 35)
+df.info
+
+https://colab.research.google.com/drive/1YAamSSWS9ag8iLtTPKKXwLHTqbV8M74L#scrollTo=eh3tUXtLG1xu&printMode=true
+
+1/16
+
+9/11/24, 7:26 PM
+
+Copy of LayoffPrediction.ipynb - Colab
+
+pandas.core.frame.DataFrame.info
+def info(verbose: bool | None=None, buf: WriteBuffer[str] | None=None, max_cols: int | None=None,
+memory_usage: bool | str | None=None, show_counts: bool | None=None) -> None
+Print a concise summary of a DataFrame.
+This method prints information about a DataFrame including
+the index dtype and columns, non-null values and memory usage.
+Parameters
+
+df.isnull()
+Age
+
+Attrition
+
+BusinessTravel
+
+DailyRate
+
+Department
+
+DistanceFromHome Education
+
+EducationField
+
+EmployeeCount
+
+0
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+1
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+2
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+3
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+4
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+...
+
+...
+
+...
+
+...
+
+...
+
+...
+
+...
+
+...
+
+...
+
+...
+
+1465
+1466
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+1467
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+1468
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+1469
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+False
+
+EmployeeNu
+
+1470 rows × 35 columns
+
+df.isnull().sum()
+Age
+Attrition
+BusinessTravel
+DailyRate
+Department
+DistanceFromHome
+Education
+EducationField
+EmployeeCount
+EmployeeNumber
+EnvironmentSatisfaction
+Gender
+HourlyRate
+JobInvolvement
+JobLevel
+JobRole
+JobSatisfaction
+MaritalStatus
+MonthlyIncome
+MonthlyRate
+NumCompaniesWorked
+Over18
+OverTime
+PercentSalaryHike
+PerformanceRating
+RelationshipSatisfaction
+StandardHours
+StockOptionLevel
+TotalWorkingYears
+TrainingTimesLastYear
+WorkLifeBalance
+YearsAtCompany
+YearsInCurrentRole
+YearsSinceLastPromotion
+YearsWithCurrManager
+dtype: int64
+
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+
+df.head()
+
+https://colab.research.google.com/drive/1YAamSSWS9ag8iLtTPKKXwLHTqbV8M74L#scrollTo=eh3tUXtLG1xu&printMode=true
+
+2/16
+
+9/11/24, 7:26 PM
+
+Copy of LayoffPrediction.ipynb - Colab
+
+Age
+
+Attrition
+
+BusinessTravel
+
+DailyRate
+
+Department
+
+DistanceFromHome Education
+
+EducationField
+
+EmployeeCount
+
+0
+
+41
+
+Yes
+
+Travel_Rarely
+
+1102
+
+Sales
+
+1
+
+2
+
+Life Sciences
+
+1
+
+1
+
+49
+
+No
+
+Travel_Frequently
+
+279
+
+Research &
+Development
+
+8
+
+1
+
+Life Sciences
+
+1
+
+2
+
+37
+
+Yes
+
+Travel_Rarely
+
+1373
+
+Research &
+Development
+
+2
+
+2
+
+Other
+
+1
+
+3
+
+33
+
+No
+
+Travel_Frequently
+
+1392
+
+Research &
+Development
+
+3
+
+4
+
+Life Sciences
+
+1
+
+4
+
+27
+
+No
+
+Travel_Rarely
+
+591
+
+Research &
+Development
+
+2
+
+1
+
+Medical
+
+1
+
+EmployeeNumbe
+
+5 rows × 35 columns
+
+df.describe()
+Age
+
+DailyRate
+
+DistanceFromHome
+
+Education
+
+EmployeeCount
+
+EmployeeNumber
+
+EnvironmentSatisfaction
+
+HourlyRate
+
+count
+
+1470.000000
+
+1470.000000
+
+1470.000000
+
+1470.000000
+
+1470.0
+
+1470.000000
+
+1470.000000
+
+1470.000000
+
+mean
+
+36.923810
+
+802.485714
+
+9.192517
+
+2.912925
+
+1.0
+
+1024.865306
+
+2.721769
+
+65.891156
+
+std
+
+9.135373
+
+403.509100
+
+8.106864
+
+1.024165
+
+0.0
+
+602.024335
+
+1.093082
+
+20.329428
+
+min
+
+18.000000
+
+102.000000
+
+1.000000
+
+1.000000
+
+1.0
+
+1.000000
+
+1.000000
+
+30.000000
+
+25%
+
+30.000000
+
+465.000000
+
+2.000000
+
+2.000000
+
+1.0
+
+491.250000
+
+2.000000
+
+48.000000
+
+50%
+
+36.000000
+
+802.000000
+
+7.000000
+
+3.000000
+
+1.0
+
+1020.500000
+
+3.000000
+
+66.000000
+
+75%
+
+43.000000
+
+1157.000000
+
+14.000000
+
+4.000000
+
+1.0
+
+1555.750000
+
+4.000000
+
+83.750000
+
+max
+
+60.000000
+
+1499.000000
+
+29.000000
+
+5.000000
+
+1.0
+
+2068.000000
+
+4.000000
+
+100.000000
+
+J
+
+8 rows × 26 columns
+
+import pandas as pd
+import matplotlib.pyplot as plt
+plt.figure(figsize=(8,6))
+x=df["DailyRate"]
+y=df["Attrition"]
+plt.bar(x,y)
+plt.show()
+
+import matplotlib.pyplot as plt
+# Sample data
+x=df["DailyRate"]
+y=df["Attrition"]
+
+https://colab.research.google.com/drive/1YAamSSWS9ag8iLtTPKKXwLHTqbV8M74L#scrollTo=eh3tUXtLG1xu&printMode=true
+
+3/16
+
+9/11/24, 7:26 PM
+
+Copy of LayoffPrediction.ipynb - Colab
+
+# Create lollipop chart
+plt.stem(x,y,markerfmt='o', linefmt='k-', basefmt=' ')
+# Add title and labels
+plt.title('Lollipop Chart Example')
+plt.xlabel('Categories')
+plt.ylabel('Values')
+# Display the plot
+plt.show()
+
+plt.figure(figsize=(8, 6))
+sns.violinplot(x='DailyRate', y='Attrition', data=df)
+plt.title('DailyRate vs Attrition')
+plt.xlabel('DailyRate')
+plt.ylabel('Attirtion')
+plt.show()
+
+plt.figure(figsize=(8, 6))
+sns.boxplot(x='MonthlyIncome', y='Attrition', data=df)
+plt.title('Income vs Attrition')
+plt.xlabel('MonthlyIncome')
+plt.ylabel('Attirtion')
+plt.show()
+
+https://colab.research.google.com/drive/1YAamSSWS9ag8iLtTPKKXwLHTqbV8M74L#scrollTo=eh3tUXtLG1xu&printMode=true
+
+4/16
+
+9/11/24, 7:26 PM
+
+Copy of LayoffPrediction.ipynb - Colab
+
+plt.figure(figsize=(8, 6))
+sns.boxplot(x='HourlyRate', y='Attrition', data=df)
+plt.title('HourlyRate vs Attrition')
+plt.xlabel('HourlyRate')
+plt.ylabel('Attirtion')
+plt.show()
+
+num_cols = ['Age', 'DistanceFromHome','MonthlyIncome','NumCompaniesWorked', 'PercentSalaryHike',
+'TotalWorkingYears', 'TrainingTimesLastYear',
+'YearsAtCompany', 'YearsInCurrentRole', 'YearsSinceLastPromotion',
+'YearsWithCurrManager']
+for col in num_cols:
+plt.figure(figsize=(12,6))
+sns.violinplot(x=col, hue='Attrition', data=df)
+plt.title("Attrition distrition by " + col)
+plt.show()
+
+https://colab.research.google.com/drive/1YAamSSWS9ag8iLtTPKKXwLHTqbV8M74L#scrollTo=eh3tUXtLG1xu&printMode=true
+
+5/16
+
+9/11/24, 7:26 PM
+
+Copy of LayoffPrediction.ipynb - Colab
+
+https://colab.research.google.com/drive/1YAamSSWS9ag8iLtTPKKXwLHTqbV8M74L#scrollTo=eh3tUXtLG1xu&printMode=true
+
+6/16
+
+9/11/24, 7:26 PM
+
+Copy of LayoffPrediction.ipynb - Colab
+
+https://colab.research.google.com/drive/1YAamSSWS9ag8iLtTPKKXwLHTqbV8M74L#scrollTo=eh3tUXtLG1xu&printMode=true
+
+7/16
+
+9/11/24, 7:26 PM
+
+Copy of LayoffPrediction.ipynb - Colab
+
+https://colab.research.google.com/drive/1YAamSSWS9ag8iLtTPKKXwLHTqbV8M74L#scrollTo=eh3tUXtLG1xu&printMode=true
+
+8/16
+
+9/11/24, 7:26 PM
+
+Copy of LayoffPrediction.ipynb - Colab
+
+https://colab.research.google.com/drive/1YAamSSWS9ag8iLtTPKKXwLHTqbV8M74L#scrollTo=eh3tUXtLG1xu&printMode=true
+
+9/16
+
+9/11/24, 7:26 PM
+
+Copy of LayoffPrediction.ipynb - Colab
+
+df['Attrition'].value_counts()
+Attrition
+No
+1233
+Yes
+237
+Name: count, dtype: int64
+df['MaritalStatus'].value_counts().plot(kind = 'pie' , autopct = "%1.1f%%")
+plt.show()
+
+df['MonthlyIncome'].value_counts().plot(kind = 'pie' , autopct = "%1.1f%%")
+plt.show()
+
+df.groupby('Attrition').EducationField.value_counts().plot(kind = "pie",autopct = "%1.1f%%")
+plt.show()
+
+https://colab.research.google.com/drive/1YAamSSWS9ag8iLtTPKKXwLHTqbV8M74L#scrollTo=eh3tUXtLG1xu&printMode=true
+
+10/16
+
+9/11/24, 7:26 PM
+
+Copy of LayoffPrediction.ipynb - Colab
+
+fact_cols=["Gender","DistanceFromeHome","OverTime","JobRole"]
+df.groupby('Attrition').OverTime.value_counts().plot(kind = "pie",autopct = "%1.1f%%")
+plt.show()
+
+df.groupby('Attrition').JobRole.value_counts().plot(kind = "pie",autopct = "%1.1f%%")
+plt.show()
+
+df.groupby('Attrition').Over18.value_counts().plot(kind = "pie",autopct = "%1.1f%%")
+plt.show()
+
+DATA TRANSFORMATION
+
+https://colab.research.google.com/drive/1YAamSSWS9ag8iLtTPKKXwLHTqbV8M74L#scrollTo=eh3tUXtLG1xu&printMode=true
+
+11/16
+
+9/11/24, 7:26 PM
+
+Copy of LayoffPrediction.ipynb - Colab
+
+df['Over18'].value_counts()
+
+Over18
+Y
+1470
+Name: count, dtype: int64
+df['BusinessTravel'].value_counts()
+BusinessTravel
+Travel_Rarely
+1043
+Travel_Frequently
+277
+Non-Travel
+150
+Name: count, dtype: int64
+from sklearn.preprocessing import LabelEncoder
+encoder = LabelEncoder()
+
+df['EducationField'] = encoder.fit_transform(df['EducationField'])
+df['Gender'] = encoder.fit_transform(df['Gender'])
+df['JobRole'] = encoder.fit_transform(df['JobRole'])
+df['MaritalStatus'] = encoder.fit_transform(df['MaritalStatus'])
+df['OverTime'] = encoder.fit_transform(df['OverTime'])
+df.info()
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 1470 entries, 0 to 1469
+Data columns (total 34 columns):
+#
+Column
+Non-Null Count
+--- ------------------0
+Age
+1470 non-null
+1
+Attrition
+1470 non-null
+2
+BusinessTravel
+1470 non-null
+3
+DailyRate
+1470 non-null
+4
+Department
+1470 non-null
+5
+DistanceFromHome
+1470 non-null
+6
+Education
+1470 non-null
+7
+EducationField
+1470 non-null
+8
+EmployeeCount
+1470 non-null
+9
+EmployeeNumber
+1470 non-null
+10 EnvironmentSatisfaction
+1470 non-null
+11 Gender
+1470 non-null
+12 HourlyRate
+1470 non-null
+13 JobInvolvement
+1470 non-null
+14 JobLevel
+1470 non-null
+15 JobRole
+1470 non-null
+16 JobSatisfaction
+1470 non-null
+17 MaritalStatus
+1470 non-null
+18 MonthlyIncome
+1470 non-null
+19 MonthlyRate
+1470 non-null
+20 NumCompaniesWorked
+1470 non-null
+21 OverTime
+1470 non-null
+22 PercentSalaryHike
+1470 non-null
+23 PerformanceRating
+1470 non-null
+24 RelationshipSatisfaction 1470 non-null
+25 StandardHours
+1470 non-null
+26 StockOptionLevel
+1470 non-null
+27 TotalWorkingYears
+1470 non-null
+28 TrainingTimesLastYear
+1470 non-null
+29 WorkLifeBalance
+1470 non-null
+30 YearsAtCompany
+1470 non-null
+31 YearsInCurrentRole
+1470 non-null
+32 YearsSinceLastPromotion
+1470 non-null
+33 YearsWithCurrManager
+1470 non-null
+dtypes: int64(31), object(3)
+memory usage: 390.6+ KB
+
+Dtype
+----int64
+object
+object
+int64
+object
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+int64
+
+from sklearn.preprocessing import MinMaxScaler
+
+df.head()
+
+https://colab.research.google.com/drive/1YAamSSWS9ag8iLtTPKKXwLHTqbV8M74L#scrollTo=eh3tUXtLG1xu&printMode=true
+
+12/16
+
+9/11/24, 7:26 PM
+
+Copy of LayoffPrediction.ipynb - Colab
+
+Age
+
+Attrition
+
+BusinessTravel
+
+DailyRate
+
+Department
+
+DistanceFromHome Education
+
+EducationField
+
+EmployeeCount
+
+0
+
+41
+
+Yes
+
+Travel_Rarely
+
+1102
+
+Sales
+
+1
+
+2
+
+1
+
+1
+
+1
+
+49
+
+No
+
+Travel_Frequently
+
+279
+
+Research &
+Development
+
+8
+
+1
+
+1
+
+1
+
+2
+
+37
+
+Yes
+
+Travel_Rarely
+
+1373
+
+Research &
+Development
+
+2
+
+2
+
+4
+
+1
+
+3
+
+33
+
+No
+
+Travel_Frequently
+
+1392
+
+Research &
+Development
+
+3
+
+4
+
+1
+
+1
+
+4
+
+27
+
+No
+
+Travel_Rarely
+
+591
+
+Research &
+Development
+
+2
+
+1
+
+3
+
+1
+
+EmployeeNumbe
+
+5 rows × 34 columns
+
+obj=df.select_dtypes('object')
+num=df.select_dtypes(['int64','float64'])
+obj.head()
+Attrition
+
+BusinessTravel
+
+Department
+
+0
+
+Yes
+
+Travel_Rarely
+
+Sales
+
+1
+
+No
+
+Travel_Frequently
+
+Research & Development
+
+2
+
+Yes
+
+Travel_Rarely
+
+Research & Development
+
+3
+
+No
+
+Travel_Frequently
+
+Research & Development
+
+4
+
+No
+
+Travel Rarely
+
+Research & Development
+
+num.head()
+Age
+
+DailyRate
+
+DistanceFromHome
+
+Education
+
+EducationField
+
+EmployeeCount
+
+EmployeeNumber
+
+EnvironmentSatisfaction
+
+Gender
+
+0
+
+41
+
+1102
+
+1
+
+2
+
+1
+
+1
+
+1
+
+2
+
+0
+
+1
+
+49
+
+279
+
+8
+
+1
+
+1
+
+1
+
+2
+
+3
+
+1
+
+2
+
+37
+
+1373
+
+2
+
+2
+
+4
+
+1
+
+4
+
+4
+
+1
+
+3
+
+33
+
+1392
+
+3
+
+4
+
+1
+
+1
+
+5
+
+4
+
+0
+
+4
+
+27
+
+591
+
+2
+
+1
+
+3
+
+1
+
+7
+
+1
+
+1
+
+Hour
+
+5 rows × 31 columns
+
+obj=pd.get_dummies(obj,drop_first=True)
+obj.head()
+
+Attrition_Yes
+
+BusinessTravel_Travel_Frequently BusinessTravel_Travel_Rarely
+
+Department_Research &
+Development
+
+Department_Sales
+
+0
+
+True
+
+False
+
+True
+
+False
+
+True
+
+1
+
+False
+
+True
+
+False
+
+True
+
+False
+
+2
+
+True
+
+False
+
+True
+
+True
+
+False
+
+3
+
+False
+
+True
+
+False
+
+True
+
+False
+
+d=num.corr()
+plt.figure(figsize=(15,10))
+sns.heatmap(d[(d>0.2) | (d<-0.2)],annot=True)
+
+https://colab.research.google.com/drive/1YAamSSWS9ag8iLtTPKKXwLHTqbV8M74L#scrollTo=eh3tUXtLG1xu&printMode=true
+
+13/16
+
+9/11/24, 7:26 PM
+
+Copy of LayoffPrediction.ipynb - Colab
+
+<Axes: >
+
+mm=MinMaxScaler()
+numScale=mm.fit_transform(num)
+num=pd.DataFrame(numScale,columns=num.columns)
+num.head()
+Age
+
+DailyRate
+
+DistanceFromHome Education
+
+EducationField
+
+EmployeeCount
+
+EmployeeNumber
+
+EnvironmentSatisfaction
+
+Gender
+
+0
+
+0.547619
+
+0.715820
+
+0.000000
+
+0.25
+
+0.2
+
+0.0
+
+0.000000
+
+0.333333
+
+0.0
+
+1
+
+0.738095
+
+0.126700
+
+0.250000
+
+0.00
+
+0.2
+
+0.0
+
+0.000484
+
+0.666667
+
+1.0
+
+2
+
+0.452381
+
+0.909807
+
+0.035714
+
+0.25
+
+0.8
+
+0.0
+
+0.001451
+
+1.000000
+
+1.0
+
+3
+
+0.357143
+
+0.923407
+
+0.071429
+
+0.75
+
+0.2
+
+0.0
+
+0.001935
+
+1.000000
+
+0.0
+
+4
+
+0.214286
+
+0.350036
+
+0.035714
+
+0.00
+
+0.6
+
+0.0
+
+0.002903
+
+0.000000
+
+1.0
+
+5 rows × 31 columns
+
+final = pd.concat([obj.reset_index(drop=True),num.reset_index(drop=True)], axis=1)
+final.head()
+
+https://colab.research.google.com/drive/1YAamSSWS9ag8iLtTPKKXwLHTqbV8M74L#scrollTo=eh3tUXtLG1xu&printMode=true
+
+14/16
+
+9/11/24, 7:26 PM
+
+Copy of LayoffPrediction.ipynb - Colab
+
+Attrition_Yes
+
+BusinessTravel_Travel_Frequently BusinessTravel_Travel_Rarely
+
+Department_Research
+& Development
+
+Department_Sales
+
+Age
+0.547619
+
+0
+
+True
+
+False
+
+True
+
+False
+
+True
+
+1
+
+False
+
+True
+
+False
+
+True
+
+False 0.738095
+
+2
+
+True
+
+False
+
+True
+
+True
+
+False 0.452381
+
+3
+
+False
+
+True
+
+False
+
+True
+
+False 0.357143
+
+4
+
+False
+
+False
+
+True
+
+True
+
+False 0.214286
+
+D
+
+5 rows × 36 columns
+
+MODEL TRAINING
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.model_selection import train_test_split,GridSearchCV
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from imblearn.over_sampling import RandomOverSampler,SMOTE
+from imblearn.under_sampling import RandomUnderSampler
+from sklearn.preprocessing import StandardScaler
+import xgboost as xgb
+x=final.drop(['Attrition_Yes'],axis=1)
+y=final['Attrition_Yes']
+x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=0.2)
+sns.kdeplot(y_train)
+<Axes: xlabel='Attrition_Yes', ylabel='Density'>
+
+x=final.drop(['Attrition_Yes'],axis=1)
+y=final['Attrition_Yes']
+x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=0.2)
+sns.catplot(y_train)
+
+https://colab.research.google.com/drive/1YAamSSWS9ag8iLtTPKKXwLHTqbV8M74L#scrollTo=eh3tUXtLG1xu&printMode=true
+
+15/16
+
+9/11/24, 7:26 PM
+
+Copy of LayoffPrediction.ipynb - Colab
+
+<seaborn.axisgrid.FacetGrid at 0x7b38603a65c0>
+
+from sklearn.metrics import accuracy_score
+p = model.predict(x_test)
+print(accuracy_score(y_test,p))
+
+0.8605442176870748
+from sklearn.metrics import accuracy_score
+models = {
+"Logistic regression":LogisticRegression(),
+"Tree ":DecisionTreeClassifier(),
+"Ensambled":RandomForestClassifier(),
+"xg":xgb.XGBClassifier(),
+'SVC':SVC(),
+'KNN':KNeighborsClassifier(),
+}
+for name,model in models.items():
+model.fit(x_train,y_train)
+p = model.predict(x_test)
+print("Model: " , name)
+print("Model:",accuracy_score(y_test,p))
+Model: Logistic regression
+Model: 0.8775510204081632
+Model: Tree
+Model: 0.7653061224489796
+Model: Ensambled
+Model: 0.8605442176870748
+Model: xg
+Model: 0.8639455782312925
+Model: SVC
+Model: 0.8707482993197279
+Model: KNN
+Model: 0.8605442176870748
+
+Double-click (or enter) to edit
+The above models have accuracy score more than 85% except Decision Tree classifier
+
+https://colab.research.google.com/drive/1YAamSSWS9ag8iLtTPKKXwLHTqbV8M74L#scrollTo=eh3tUXtLG1xu&printMode=true
+
+16/16
+
+
